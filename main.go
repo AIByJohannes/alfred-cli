@@ -5,6 +5,6 @@ import (
 )
 
 func main() {
-  s := "gopher"
-  fmt.Printf("Hello and welcome, %s!\n", s)
+  s := "A.L.F.R.E.D"
+  fmt.Printf("Hello, my name is %s!\n", s)
 }

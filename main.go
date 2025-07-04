@@ -1,10 +1,9 @@
 package main
 
 import (
-  "fmt"
+	"alfred-cli/tui"
 )
 
 func main() {
-  s := "A.L.F.R.E.D"
-  fmt.Printf("Hello, my name is %s!\n", s)
+	tui.Start()
 }

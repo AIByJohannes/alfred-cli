@@ -6,5 +6,8 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "openai": "^6.16.0"
   }
 }

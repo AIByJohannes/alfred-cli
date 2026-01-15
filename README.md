@@ -1,4 +1,4 @@
-# ALFRED CLI
-![Go](https://img.shields.io/badge/-Go-00ADD8?style=flat&logo=go&logoColor=white)
+# A.L.F.R.E.D. CLI
+![TypeScript](https://img.shields.io/badge/-TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)
 
-CLI for agentic use of ALFRED
+CLI for agentic use of Alfred in shell.

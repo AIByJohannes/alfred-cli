@@ -1,64 +1,85 @@
-# Rust-First Migration Plan for Alfred CLI (Ratatui Edition)
+# Rust-First Plan for Alfred CLI (Ratatui Edition)
 
-This document outlines the strategy for migrating Alfred CLI to a nearly **100% Rust architecture**. By using `ratatui` for the TUI, we eliminate the need for Node.js/Ink for the core experience, keeping only a minimal TypeScript wrapper for NPM distribution and installation.
+Context: the current codebase is an early JS/TS skeleton with no implemented features. The goal is to move to a Rust-first architecture with ratatui for the TUI and a thin Node wrapper only for distribution.
 
-## 1. Objectives
+## Objectives
 
-- **95%+ Rust Coverage**: The entire application—TUI, Agent Loop, RAG, and Tools—will be written in Rust.
-- **Ratatui TUI**: Use `ratatui` + `crossterm` for a fast, memory-safe, and dependency-free terminal interface.
-- **Native Performance**: No Node.js runtime overhead during core execution.
-- **Optional NPM Bridge**: Maintain a thin TS entry point that downloads/executes the pre-compiled Rust binary.
+- **Rust-first**: TUI, agent loop, tools, and RAG written in Rust; Node kept only for an installer/bridge.
+- **Fast, portable UX**: ratatui + crossterm UI with responsive event handling on Linux/macOS/Windows.
+- **Safe execution**: clear boundaries for shell/fs/git tools, sane defaults for config/secrets, and predictable error handling.
+- **Simple distribution**: prebuilt binaries plus an npm installer that fetches the right target.
 
-## 2. Proposed Architecture
+## Target Architecture
 
-The entire project moves into a unified Rust workspace.
-
-### 2.1 Rust Workspace
-
-```text
+```
 alfred-cli/
 ├── Cargo.toml
 ├── crates/
-│   ├── alfred-cli/           # BINARY: Ratatui TUI, Event Loop, View logic
-│   ├── alfred-core/          # Agent Loop, Planner, Command Router, State Management
-│   ├── alfred-tools/         # Tool implementations (FS, Git, Shell)
-│   ├── alfred-rag/           # Vector/Lexical Search, Chunking, Indexing
-│   └── alfred-node-bridge/   # OPTIONAL: NAPI-RS bindings if Node.js interop is needed
+│   ├── alfred-cli/         # binary: ratatui UI, input/output loop
+│   ├── alfred-core/        # agent loop, planner/router, session state
+│   ├── alfred-tools/       # fs/git/shell abstractions
+│   ├── alfred-rag/         # chunk/index/query pipeline
+│   └── alfred-node-bridge/ # optional NAPI-RS bindings if interop is needed
 └── packages/
-    └── alfred/               # Minimal NPM package. Installs the native binary.
+    └── alfred/             # minimal npm package: downloads/executes the binary
 ```
 
-## 3. Key Migration Shifts
+## Assumptions & Parity
 
-- **TUI Framework**: Shift from React-style components (Ink) to immediate-mode rendering with `ratatui`.
-- **Event Handling**: Use `crossterm` for cross-platform terminal events (keyboard, mouse, resize).
-- **Concurrency**: Use `tokio` to manage the background Agent Loop while keeping the TUI responsive.
+- No legacy features to port; define an initial capability set in Rust rather than replicating JS.
+- Create a **parity checklist** as features land: UI views, commands, tool behaviors, config/secrets, logging/telemetry. Track must-have vs. nice-to-have for GA.
 
-## 4. Migration Phases
+## Technology Choices
 
-### Phase 1: Rust TUI Prototype
-1.  Initialize `crates/alfred-cli` with `ratatui`.
-2.  Implement a basic chat interface with scrollable history and an input field.
-3.  Set up the async bridge between the TUI thread and the Agent Core.
-
-### Phase 2: Core Logic Porting
-1.  Port `LLMClient` and Agent orchestration to `crates/alfred-core`.
-2.  Re-implement Tools and RAG in their respective Rust crates.
-3.  Integrate the Core into the Ratatui TUI.
-
-### Phase 3: NPM Distribution
-1.  Configure `cargo-dist` or similar to build binaries for Linux, macOS, and Windows.
-2.  Create a thin `@alfred/cli` NPM package that uses a "postinstall" script or a binary downloader to fetch the correct native executable.
-
-## 5. Technology Selection
-
-- **TUI**: `ratatui` + `crossterm`.
+- **TUI**: `ratatui` + `crossterm`, `ratatui-textarea` for input.
 - **Async**: `tokio`.
-- **LLM**: `async-openai`.
-- **State**: `ratatui-textarea` (for input), `serde` (for persistence).
-- **Styling**: `ratatui`'s native styling and layout engine.
+- **LLM**: `async-openai` (pluggable via trait for future providers); mock implementation for tests.
+- **Serialization**: `serde`, JSON/RON for state/config.
+- **Pathing**: `camino`/`dunce` for cross-platform paths.
+- **Packaging**: `cargo-dist` (or `cross`) for binaries; npm postinstall downloader.
 
-## 6. Verification
-- **Responsiveness**: Ensure the TUI remains 60fps even during heavy RAG operations.
-- **Portability**: Test the standalone binary on Linux, macOS, and Windows.
-- **Installation**: Verify the NPM installation flow correctly deploys the native binary.
+## Phased Plan
+
+### Phase 0: Workspace Foundations
+- Initialize Cargo workspace, crates, shared tooling (`rustfmt`, `clippy`), and CI skeleton (lint + tests).
+- Define error taxonomy and logging/tracing setup; panic hooks and terminal restore for TUI.
+
+### Phase 1: TUI Skeleton (ratatui)
+- Implement layout with scrollback and input box; render loop with crossterm events.
+- Mock agent channel to display fake streaming responses; backpressure via bounded channels.
+- Graceful shutdown and terminal cleanup; basic keybindings and resize handling.
+
+### Phase 2: Core & Tools
+- `alfred-core`: agent loop scaffolding, message/session models, router trait for tools/RAG, cancellation support.
+- `alfred-tools`: fs (read/write/list), shell (PTY and non-PTY), git (status/diff/apply); normalize paths and outputs; Windows-safe behavior.
+- Config/secrets: load from XDG/AppData with env overrides; validation and redaction in logs.
+
+### Phase 3: LLM & RAG Foundations
+- LLM client using `async-openai` with timeout/retry/backoff; injectable mock for tests.
+- RAG crate skeleton: chunker, embedder trait, index abstraction (choose backend later), in-memory prototype for dev.
+- CLI hooks for ingest/query to exercise the pipeline headlessly.
+
+### Phase 4: Integration & UX Pass
+- Wire TUI to core/LLM/tools with bounded channels; surface status/errors and cancellation.
+- Add minimal session persistence (history saved to disk) and configurable keybindings/colors.
+- Optional telemetry (opt-in) and file-based logging with secret redaction.
+
+### Phase 5: Testing & Quality
+- Unit tests: tools (fs/git/shell), LLM client with mock, RAG chunk/index/query.
+- Integration: agent loop with mocked LLM/tools; non-interactive TUI snapshot tests for key screens.
+- CI matrix for linux/macos/windows; fmt + clippy gates.
+
+### Phase 6: Distribution & Rollout
+- `cargo-dist` builds with checksums; macOS codesign/notarize and Windows signing if available.
+- npm package postinstall downloader with proxy/offline fallback and clear errors; cache downloads.
+- Release/versioning: semantic versioning, changelog, GitHub releases with artifacts.
+- Rollout: keep JS path as fallback during early beta; config flag to opt into Rust binary until GA.
+
+## Acceptance Checklist (to fill as features land)
+
+- TUI: scrollback, input, streaming responses, resize handling, keybindings documented.
+- Core: agent loop runs with cancellation; structured errors surfaced to UI; logging/tracing works.
+- Tools: fs/git/shell pass unit tests on linux/macos/windows; safe path handling.
+- LLM/RAG: mockable clients; basic ingest/query path works; timeouts/retries validated.
+- Distribution: binaries for three platforms downloadable via npm; terminal restored after crashes; installer handles offline/proxy.
+- Docs: README updated for Rust build/run and npm install flow; migration notes for users.

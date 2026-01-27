@@ -48,4 +48,3 @@ coverage/
 .vitest-result.json
 # Rust
 /target/
-Cargo.lock

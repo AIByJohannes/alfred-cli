@@ -46,3 +46,6 @@ coverage/
 
 # Vitest
 .vitest-result.json
+# Rust
+/target/
+Cargo.lock

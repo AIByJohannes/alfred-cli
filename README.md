@@ -1,5 +1,6 @@
 # A.L.F.R.E.D. CLI
 ![TypeScript](https://img.shields.io/badge/-TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)
+![Rust](https://img.shields.io/badge/-Rust-000000?style=flat&logo=rust&logoColor=white)
 
 **A.L.F.R.E.D.** (**A**gentic **L**ocal **F**ramework for **R**epository **E**nhancement and **D**evelopment) is a cross-platform, open-source terminal agent designed to assist with software engineering tasks directly from your shell.
 

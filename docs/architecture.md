@@ -1,10 +1,10 @@
 # Architecture of Alfred CLI
 
-Alfred CLI is a cross-platform, open-source terminal agent that can chat, edit files, and run tools against a local repo, with a React-style TUI and a pluggable “agent core” for different LLM providers. The closest proven pattern is using Ink (React renderer for terminals) for the interactive UI, as seen in similar agentic CLIs.
+Alfred CLI is a cross-platform, open-source terminal agent that can chat, edit files, and run tools against a local repo. The TUI and agent runtime are implemented in Rust for a native, low-dependency CLI experience.
 
 ## Overview
 
-Alfred CLI provides (1) an interactive TUI, (2) an agent loop with tool/function calling, and (3) an optional RAG subsystem for repo/document retrieval. The UI layer is built with Ink so the interface can be composed from React components and debugged with React tooling.
+Alfred CLI provides (1) an interactive TUI, (2) an agent loop with tool/function calling, and (3) an optional RAG subsystem for repo/document retrieval. The UI layer uses `ratatui` + `crossterm`, and the runtime is async-first with `tokio`.
 
 ## Goals and non-goals
 
@@ -22,18 +22,18 @@ Alfred CLI provides (1) an interactive TUI, (2) an agent loop with tool/function
 
 ## Architecture
 
-Alfred is split into packages to keep UI, agent logic, tools, and retrieval independent (mirrors the “two main packages + tools” structure used by comparable CLIs).
+Alfred is split into crates to keep UI, agent logic, tools, and retrieval independent (mirrors the “core + tools” structure used by comparable CLIs).
 
-- `@alfred/cli` (TUI + command router)
-    - Ink + React components for chat panes, diff viewer, tool run progress, status bar.
-- `@alfred/core` (agent runtime)
+- `alfred-cli` (TUI + command router)
+    - `ratatui` widgets for chat panes, tool run progress, status bar.
+- `alfred-core` (agent runtime)
     - Conversation state, planner, tool registry, policy checks, streaming orchestration.
-- `@alfred/tools` (tooling layer)
-    - Filesystem tools (read/write/patch), shell tool (sandboxed), git tool, HTTP tool, “banking API” tool templates (see Function Calling section).
-- `@alfred/rag` (retrieval layer)
+- `alfred-tools` (tooling layer)
+    - Filesystem tools (read/write/patch), shell tool (sandboxed), git tool, HTTP tool templates (see Function Calling section).
+- `alfred-rag` (retrieval layer)
     - Chunking, indexing, hybrid retrieval, reranking, citations/attributions.
-- `@alfred/ext` (extensions)
-    - Loads external tools/commands; supports “slash commands” defined in .toml files, following a pattern used in existing CLIs.
+- `alfred-node-bridge` (optional bridge)
+    - FFI surface for npm-based distribution or Node integrations that spawn the native CLI.
 
 
 ## Core workflows

@@ -34,8 +34,10 @@ The project is structured as a Rust workspace with the following crates:
 ```bash
 git clone https://github.com/AIByJohannes/alfred-cli.git
 cd alfred-cli
-cargo build --release
+make install
 ```
+
+This will build and install the `alfred` binary to your Cargo bin directory (usually `~/.cargo/bin`). Make sure this directory is in your `PATH`.
 
 To run locally:
 

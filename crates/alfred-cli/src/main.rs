@@ -1,7 +1,9 @@
 use std::io::{self, Stdout};
 use std::time::Duration;
+use std::env;
 
-use alfred_core::{Message, Role};
+use alfred_core::{Message, Role, AgentRouter, AgentEvent};
+use alfred_core::providers::openrouter::OpenRouterProvider;
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
@@ -158,7 +160,12 @@ async fn main() -> Result<()> {
                         if !content.is_empty() {
                             app.push_user(content.clone());
                             app.input.clear();
-                            spawn_mock_agent(content, tx.clone());
+                            
+                            if let Ok(api_key) = env::var("OPENROUTER_API_KEY") {
+                                spawn_agent(app.messages.clone(), tx.clone(), api_key);
+                            } else {
+                                spawn_mock_agent(content, tx.clone());
+                            }
                         }
                     }
                     KeyCode::Backspace => {
@@ -230,3 +237,30 @@ fn spawn_mock_agent(input: String, tx: mpsc::Sender<AppEvent>) {
         let _ = tx.send(AppEvent::AgentDone).await;
     });
 }
+
+fn spawn_agent(messages: Vec<Message>, tx: mpsc::Sender<AppEvent>, api_key: String) {
+    tokio::spawn(async move {
+        // Use a default model, e.g., google/gemini-2.0-flash-001 (free on OpenRouter) or openai/gpt-3.5-turbo
+        let provider = OpenRouterProvider::new(api_key, "google/gemini-2.0-flash-001".to_string());
+        
+        match provider.respond(&messages).await {
+            Ok(events) => {
+                for event in events {
+                    match event {
+                        AgentEvent::MessageDelta(content) => {
+                             if tx.send(AppEvent::AgentChunk(content)).await.is_err() {
+                                return;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Err(e) => {
+                let _ = tx.send(AppEvent::AgentChunk(format!("Error: {}", e))).await;
+            }
+        }
+        let _ = tx.send(AppEvent::AgentDone).await;
+    });
+}
+

@@ -8,7 +8,13 @@ license.workspace = true
 anyhow.workspace = true
 crossterm.workspace = true
 ratatui.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 alfred-core = { path = "../alfred-core" }
+
+[[bin]]
+name = "alfred"
+path = "src/main.rs"

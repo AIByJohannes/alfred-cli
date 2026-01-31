@@ -19,6 +19,7 @@ impl Message {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Role {
     System,
     User,
@@ -35,5 +36,28 @@ impl std::fmt::Display for Role {
             Role::Tool => "tool",
         };
         write!(f, "{}", label)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_role_serialization() {
+        assert_eq!(serde_json::to_string(&Role::User).unwrap(), "\"user\"");
+        assert_eq!(serde_json::to_string(&Role::Assistant).unwrap(), "\"assistant\"");
+        assert_eq!(serde_json::to_string(&Role::System).unwrap(), "\"system\"");
+        assert_eq!(serde_json::to_string(&Role::Tool).unwrap(), "\"tool\"");
+    }
+
+    #[test]
+    fn test_message_serialization() {
+        let msg = Message::new(Role::User, "hello".to_string());
+        let serialized = serde_json::to_value(&msg).unwrap();
+        
+        assert_eq!(serialized["role"], "user");
+        assert_eq!(serialized["content"], "hello");
+        assert!(serialized.get("id").is_some());
     }
 }

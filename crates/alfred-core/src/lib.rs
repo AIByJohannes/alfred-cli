@@ -1,4 +1,5 @@
 mod models;
+pub mod providers;
 mod router;
 mod session;
 

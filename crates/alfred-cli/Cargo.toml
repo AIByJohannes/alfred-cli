@@ -14,6 +14,7 @@ tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 alfred-core = { path = "../alfred-core" }
+alfred-tools = { path = "../alfred-tools" }
 
 [[bin]]
 name = "alfred"

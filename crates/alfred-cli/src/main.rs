@@ -4,6 +4,7 @@ use std::env;
 
 use alfred_core::{Message, Role, AgentRouter, AgentEvent};
 use alfred_core::providers::openrouter::OpenRouterProvider;
+use alfred_tools::config::Config;
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
@@ -25,20 +26,37 @@ enum AppEvent {
     AgentDone,
 }
 
+enum AppMode {
+    Setup,
+    Chat,
+}
+
 struct App {
     messages: Vec<Message>,
     input: String,
     streaming_idx: Option<usize>,
     scroll: u16,
+    mode: AppMode,
+    config: Config,
 }
 
 impl App {
-    fn new() -> Self {
+    async fn new() -> Self {
+        let config = Config::load().await.unwrap_or_default();
+        // Check both config and environment variable
+        let mode = if config.openrouter_api_key.is_some() || env::var("OPENROUTER_API_KEY").is_ok() {
+            AppMode::Chat
+        } else {
+            AppMode::Setup
+        };
+
         Self {
             messages: Vec::new(),
             input: String::new(),
             streaming_idx: None,
             scroll: 0,
+            mode,
+            config,
         }
     }
 
@@ -124,25 +142,47 @@ async fn main() -> Result<()> {
     spawn_input_reader(tx.clone());
     spawn_tick(tx.clone());
 
-    let mut app = App::new();
+    let mut app = App::new().await;
 
     loop {
         terminal.draw(|frame| {
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Min(2), Constraint::Length(3)])
-                .split(frame.size());
+            match app.mode {
+                AppMode::Setup => {
+                    let chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([Constraint::Min(1), Constraint::Length(3)])
+                        .split(frame.size());
+                    
+                    let info = Paragraph::new(
+                        "Welcome to Alfred CLI!\n\nPlease enter your OpenRouter API Key to get started.\n(Press ESC to quit)"
+                    )
+                    .block(Block::default().borders(Borders::ALL).title("Setup"))
+                    .wrap(Wrap { trim: false });
+                    frame.render_widget(info, chunks[0]);
 
-            let messages = Paragraph::new(app.render_messages())
-                .block(Block::default().borders(Borders::ALL).title("Alfred"))
-                .wrap(Wrap { trim: false })
-                .scroll((app.scroll, 0));
-            frame.render_widget(messages, chunks[0]);
+                    let input = Paragraph::new(format!("> {}", app.input))
+                        .block(Block::default().borders(Borders::ALL).title("API Key"))
+                        .style(Style::default().fg(Color::Yellow));
+                    frame.render_widget(input, chunks[1]);
+                }
+                AppMode::Chat => {
+                    let chunks = Layout::default()
+                        .direction(Direction::Vertical)
+                        .constraints([Constraint::Min(2), Constraint::Length(3)])
+                        .split(frame.size());
 
-            let input = Paragraph::new(format!("> {}", app.input))
-                .block(Block::default().borders(Borders::ALL).title("Input"))
-                .style(Style::default().fg(Color::Yellow));
-            frame.render_widget(input, chunks[1]);
+                    let messages = Paragraph::new(app.render_messages())
+                        .block(Block::default().borders(Borders::ALL).title("Alfred"))
+                        .wrap(Wrap { trim: false })
+                        .scroll((app.scroll, 0));
+                    frame.render_widget(messages, chunks[0]);
+
+                    let input = Paragraph::new(format!("> {}", app.input))
+                        .block(Block::default().borders(Borders::ALL).title("Input"))
+                        .style(Style::default().fg(Color::Yellow));
+                    frame.render_widget(input, chunks[1]);
+                }
+            }
         })?;
 
         let event = match rx.recv().await {
@@ -158,13 +198,31 @@ async fn main() -> Result<()> {
                     KeyCode::Enter => {
                         let content = app.input.trim().to_string();
                         if !content.is_empty() {
-                            app.push_user(content.clone());
-                            app.input.clear();
-                            
-                            if let Ok(api_key) = env::var("OPENROUTER_API_KEY") {
-                                spawn_agent(app.messages.clone(), tx.clone(), api_key);
-                            } else {
-                                spawn_mock_agent(content, tx.clone());
+                            match app.mode {
+                                AppMode::Setup => {
+                                    app.config.openrouter_api_key = Some(content);
+                                    if let Err(e) = app.config.save().await {
+                                         // In a real app we might show an error message
+                                         eprintln!("Failed to save config: {}", e);
+                                    }
+                                    app.mode = AppMode::Chat;
+                                    app.input.clear();
+                                }
+                                AppMode::Chat => {
+                                    app.push_user(content.clone());
+                                    app.input.clear();
+                                    
+                                    // Prioritize env var, then config
+                                    let api_key = env::var("OPENROUTER_API_KEY")
+                                        .ok()
+                                        .or(app.config.openrouter_api_key.clone());
+
+                                    if let Some(key) = api_key {
+                                        spawn_agent(app.messages.clone(), tx.clone(), key);
+                                    } else {
+                                        spawn_mock_agent(content, tx.clone());
+                                    }
+                                }
                             }
                         }
                     }

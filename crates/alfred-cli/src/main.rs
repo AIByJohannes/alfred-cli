@@ -18,6 +18,8 @@ use ratatui::Terminal;
 use tokio::sync::mpsc;
 use tokio::time;
 
+mod markdown;
+
 // OneDark Theme Colors
 const ONEDARK_BG: Color = Color::Rgb(40, 44, 52);
 const ONEDARK_FG: Color = Color::Rgb(171, 178, 191);
@@ -120,8 +122,11 @@ impl App {
 
             lines.push(Line::from(vec![
                 Span::styled(format!("{}: ", label), Style::default().fg(color).bold()),
-                Span::styled(&message.content, Style::default().fg(ONEDARK_FG)),
             ]));
+            
+            let content_lines = markdown::render_markdown(&message.content, Style::default().fg(ONEDARK_FG));
+            lines.extend(content_lines);
+            
             lines.push(Line::from(""));
         }
         Text::from(lines)

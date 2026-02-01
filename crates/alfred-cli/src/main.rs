@@ -11,8 +11,8 @@ use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScree
 use crossterm::{execute, terminal};
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::{Constraint, Direction, Layout};
-use ratatui::style::{Color, Style};
-use ratatui::text::Text;
+use ratatui::style::{Color, Style, Stylize};
+use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Terminal;
 use tokio::sync::mpsc;
@@ -99,11 +99,22 @@ impl App {
     }
 
     fn render_messages(&self) -> Text<'_> {
-        let mut buffer = String::new();
+        let mut lines = Vec::new();
         for message in &self.messages {
-            buffer.push_str(&format!("{}: {}\n\n", message.role, message.content));
+            let (label, color) = match message.role {
+                Role::User => ("You", ONEDARK_GREEN),
+                Role::Assistant => ("Alfred", ONEDARK_MAGENTA),
+                Role::System => ("System", ONEDARK_CYAN),
+                Role::Tool => ("Tool", ONEDARK_RED),
+            };
+
+            lines.push(Line::from(vec![
+                Span::styled(format!("{}: ", label), Style::default().fg(color).bold()),
+                Span::styled(&message.content, Style::default().fg(ONEDARK_FG)),
+            ]));
+            lines.push(Line::from(""));
         }
-        Text::from(buffer)
+        Text::from(lines)
     }
 }
 
@@ -167,9 +178,16 @@ async fn main() -> Result<()> {
                         .constraints([Constraint::Min(1), Constraint::Length(3)])
                         .split(frame.size());
                     
-                    let info = Paragraph::new(
-                        "Welcome to Alfred CLI!\n\nPlease enter your OpenRouter API Key to get started.\n(Press ESC to quit)"
-                    )
+                    let info = Paragraph::new(Text::from(vec![
+                        Line::from("Welcome to Alfred CLI!"),
+                        Line::from(""),
+                        Line::from("Please enter your OpenRouter API Key to get started."),
+                        Line::from(vec![
+                            Span::raw("("),
+                            Span::styled("Press ESC to quit", Style::default().fg(ONEDARK_RED)),
+                            Span::raw(")"),
+                        ]),
+                    ]))
                     .block(Block::default()
                         .borders(Borders::ALL)
                         .title("Setup")

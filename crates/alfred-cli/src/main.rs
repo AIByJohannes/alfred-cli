@@ -23,7 +23,6 @@ const ONEDARK_BG: Color = Color::Rgb(40, 44, 52);
 const ONEDARK_FG: Color = Color::Rgb(171, 178, 191);
 const ONEDARK_RED: Color = Color::Rgb(224, 108, 117);
 const ONEDARK_GREEN: Color = Color::Rgb(152, 195, 121);
-const ONEDARK_YELLOW: Color = Color::Rgb(229, 192, 123);
 const ONEDARK_BLUE: Color = Color::Rgb(97, 175, 239);
 const ONEDARK_MAGENTA: Color = Color::Rgb(198, 120, 221);
 const ONEDARK_CYAN: Color = Color::Rgb(86, 182, 194);

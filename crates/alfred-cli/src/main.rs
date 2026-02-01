@@ -18,6 +18,16 @@ use ratatui::Terminal;
 use tokio::sync::mpsc;
 use tokio::time;
 
+// OneDark Theme Colors
+const ONEDARK_BG: Color = Color::Rgb(40, 44, 52);
+const ONEDARK_FG: Color = Color::Rgb(171, 178, 191);
+const ONEDARK_RED: Color = Color::Rgb(224, 108, 117);
+const ONEDARK_GREEN: Color = Color::Rgb(152, 195, 121);
+const ONEDARK_YELLOW: Color = Color::Rgb(229, 192, 123);
+const ONEDARK_BLUE: Color = Color::Rgb(97, 175, 239);
+const ONEDARK_MAGENTA: Color = Color::Rgb(198, 120, 221);
+const ONEDARK_CYAN: Color = Color::Rgb(86, 182, 194);
+
 #[derive(Debug)]
 enum AppEvent {
     Input(Event),
@@ -146,6 +156,10 @@ async fn main() -> Result<()> {
 
     loop {
         terminal.draw(|frame| {
+            // Set background for the whole area? 
+            // Ratatui widgets draw over what's there. 
+            // We'll apply the style to the widgets.
+            
             match app.mode {
                 AppMode::Setup => {
                     let chunks = Layout::default()
@@ -156,13 +170,22 @@ async fn main() -> Result<()> {
                     let info = Paragraph::new(
                         "Welcome to Alfred CLI!\n\nPlease enter your OpenRouter API Key to get started.\n(Press ESC to quit)"
                     )
-                    .block(Block::default().borders(Borders::ALL).title("Setup"))
+                    .block(Block::default()
+                        .borders(Borders::ALL)
+                        .title("Setup")
+                        .border_style(Style::default().fg(ONEDARK_BLUE))
+                    )
+                    .style(Style::default().fg(ONEDARK_FG).bg(ONEDARK_BG))
                     .wrap(Wrap { trim: false });
                     frame.render_widget(info, chunks[0]);
 
                     let input = Paragraph::new(format!("> {}", app.input))
-                        .block(Block::default().borders(Borders::ALL).title("API Key"))
-                        .style(Style::default().fg(Color::Yellow));
+                        .block(Block::default()
+                            .borders(Borders::ALL)
+                            .title("API Key")
+                            .border_style(Style::default().fg(ONEDARK_BLUE))
+                        )
+                        .style(Style::default().fg(ONEDARK_YELLOW).bg(ONEDARK_BG));
                     frame.render_widget(input, chunks[1]);
                 }
                 AppMode::Chat => {
@@ -172,14 +195,23 @@ async fn main() -> Result<()> {
                         .split(frame.size());
 
                     let messages = Paragraph::new(app.render_messages())
-                        .block(Block::default().borders(Borders::ALL).title("Alfred"))
+                        .block(Block::default()
+                            .borders(Borders::ALL)
+                            .title("Alfred")
+                            .border_style(Style::default().fg(ONEDARK_BLUE))
+                        )
+                        .style(Style::default().fg(ONEDARK_FG).bg(ONEDARK_BG))
                         .wrap(Wrap { trim: false })
                         .scroll((app.scroll, 0));
                     frame.render_widget(messages, chunks[0]);
 
                     let input = Paragraph::new(format!("> {}", app.input))
-                        .block(Block::default().borders(Borders::ALL).title("Input"))
-                        .style(Style::default().fg(Color::Yellow));
+                        .block(Block::default()
+                            .borders(Borders::ALL)
+                            .title("Input")
+                            .border_style(Style::default().fg(ONEDARK_BLUE))
+                        )
+                        .style(Style::default().fg(ONEDARK_YELLOW).bg(ONEDARK_BG));
                     frame.render_widget(input, chunks[1]);
                 }
             }

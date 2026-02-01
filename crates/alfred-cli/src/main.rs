@@ -27,6 +27,8 @@ const ONEDARK_BLUE: Color = Color::Rgb(97, 175, 239);
 const ONEDARK_MAGENTA: Color = Color::Rgb(198, 120, 221);
 const ONEDARK_CYAN: Color = Color::Rgb(86, 182, 194);
 
+const DEFAULT_SYSTEM_PROMPT: &str = include_str!("../../../prompts/SOUL.md");
+
 #[derive(Debug)]
 enum AppEvent {
     Input(Event),
@@ -59,8 +61,17 @@ impl App {
             AppMode::Setup
         };
 
+        let system_prompt = alfred_tools::config::load_system_prompt()
+            .await
+            .unwrap_or_else(|| DEFAULT_SYSTEM_PROMPT.to_string());
+
+        let mut messages = Vec::new();
+        if matches!(mode, AppMode::Chat) {
+             messages.push(Message::new(Role::System, system_prompt));
+        }
+
         Self {
-            messages: Vec::new(),
+            messages,
             input: String::new(),
             streaming_idx: None,
             scroll: 0,
@@ -254,6 +265,12 @@ async fn main() -> Result<()> {
                                          // In a real app we might show an error message
                                          eprintln!("Failed to save config: {}", e);
                                     }
+                                    
+                                    let system_prompt = alfred_tools::config::load_system_prompt()
+                                        .await
+                                        .unwrap_or_else(|| DEFAULT_SYSTEM_PROMPT.to_string());
+                                    app.messages.push(Message::new(Role::System, system_prompt));
+
                                     app.mode = AppMode::Chat;
                                     app.input.clear();
                                 }

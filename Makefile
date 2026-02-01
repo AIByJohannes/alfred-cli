@@ -19,3 +19,7 @@ test:
 
 clean:
 	cargo clean
+
+update-prompts:
+	mkdir -p prompts
+	curl -o prompts/SOUL.md https://raw.githubusercontent.com/AIByJohannes/alfred/refs/heads/main/core/prompts/SOUL.md

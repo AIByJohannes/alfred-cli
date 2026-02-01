@@ -48,3 +48,18 @@ fn get_config_path() -> Result<PathBuf> {
     let home = dirs::home_dir().context("Could not determine home directory")?;
     Ok(home.join(".config").join("alfred").join("config.toml"))
 }
+
+pub fn get_prompts_dir() -> Result<PathBuf> {
+    let home = dirs::home_dir().context("Could not determine home directory")?;
+    Ok(home.join(".config").join("alfred").join("prompts"))
+}
+
+pub async fn load_system_prompt() -> Option<String> {
+    if let Ok(prompts_dir) = get_prompts_dir() {
+        let soul_path = prompts_dir.join("SOUL.md");
+        if soul_path.exists() {
+             return fs::read_to_string(soul_path).await.ok();
+        }
+    }
+    None
+}

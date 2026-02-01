@@ -203,7 +203,7 @@ async fn main() -> Result<()> {
                             .title("API Key")
                             .border_style(Style::default().fg(ONEDARK_BLUE))
                         )
-                        .style(Style::default().fg(ONEDARK_YELLOW).bg(ONEDARK_BG));
+                        .style(Style::default().fg(ONEDARK_GREEN).bg(ONEDARK_BG));
                     frame.render_widget(input, chunks[1]);
                 }
                 AppMode::Chat => {
@@ -229,7 +229,7 @@ async fn main() -> Result<()> {
                             .title("Input")
                             .border_style(Style::default().fg(ONEDARK_BLUE))
                         )
-                        .style(Style::default().fg(ONEDARK_YELLOW).bg(ONEDARK_BG));
+                        .style(Style::default().fg(ONEDARK_GREEN).bg(ONEDARK_BG));
                     frame.render_widget(input, chunks[1]);
                 }
             }

@@ -28,13 +28,14 @@ The project is structured as a Rust workspace with the following crates:
 ### Prerequisites
 
 *   Rust toolchain (stable)
+*   [just](https://github.com/casey/just) command runner
 
 ### Installation
 
 ```bash
 git clone https://github.com/AIByJohannes/alfred-cli.git
 cd alfred-cli
-make install
+just install
 ```
 
 This will build and install the `alfred` binary to your Cargo bin directory (usually `~/.cargo/bin`). Make sure this directory is in your `PATH`.

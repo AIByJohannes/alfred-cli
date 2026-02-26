@@ -18,14 +18,15 @@ The project is organized as a Rust workspace with the following crates:
 
 ### Prerequisites
 *   Stable Rust toolchain
+*   [just](https://github.com/casey/just) command runner
 
 ### Key Commands
 
 *   **Build Workspace:**
     ```bash
     cargo build --workspace
-    # or via Makefile
-    make build
+    # or via justfile
+    just build
     ```
 
 *   **Run CLI (Local Development):**
@@ -35,20 +36,20 @@ The project is organized as a Rust workspace with the following crates:
 
 *   **Install (to Cargo bin):**
     ```bash
-    make install
+    just install
     # Equivalent to: cargo install --path crates/alfred-cli --locked
     ```
 
 *   **Run Tests:**
     ```bash
     cargo test --workspace
-    # or via Makefile
-    make test
+    # or via justfile
+    just test
     ```
 
 *   **Clean:**
     ```bash
-    make clean
+    just clean
     ```
 
 ## Development Conventions

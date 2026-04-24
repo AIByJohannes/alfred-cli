@@ -1,6 +1,7 @@
-use std::io::{self, Stdout};
-use std::time::Duration;
 use std::env;
+use std::io::{self, Stdout};
+use std::path::PathBuf;
+use std::time::Duration;
 
 use alfred_core::{Message, Role, AgentRouter, AgentEvent};
 use alfred_core::providers::openrouter::OpenRouterProvider;
@@ -163,8 +164,123 @@ fn install_panic_hook() {
     }));
 }
 
+fn print_json_event(event_type: &str, fields: &[(&str, &str)]) {
+    let mut map = serde_json::Map::new();
+    map.insert("type".to_string(), serde_json::Value::String(event_type.to_string()));
+    for (key, value) in fields {
+        map.insert(key.to_string(), serde_json::Value::String(value.to_string()));
+    }
+    println!("{}", serde_json::Value::Object(map));
+}
+
+async fn run_json_mode(prompt: &str, _mode: &str, _cwd: Option<PathBuf>) -> Result<()> {
+    let config = Config::load().await.unwrap_or_default();
+    let api_key = match env::var("OPENROUTER_API_KEY").ok().or(config.openrouter_api_key.clone()) {
+        Some(key) if !key.is_empty() => key,
+        _ => {
+            eprintln!("{{\"type\":\"error\",\"message\":\"No OpenRouter API key found. Set OPENROUTER_API_KEY or configure it.\"}}");
+            std::process::exit(1);
+        }
+    };
+
+    let system_prompt = alfred_tools::config::load_system_prompt()
+        .await
+        .unwrap_or_else(|| DEFAULT_SYSTEM_PROMPT.to_string());
+
+    let mut messages = Vec::new();
+    messages.push(Message::new(Role::System, system_prompt));
+    messages.push(Message::new(Role::User, prompt.to_string()));
+
+    let provider = OpenRouterProvider::new(api_key, "google/gemini-2.0-flash-001".to_string());
+
+    match provider.respond(&messages).await {
+        Ok(events) => {
+            for event in events {
+                match event {
+                    AgentEvent::MessageDelta(content) => {
+                        print_json_event("delta", &[("content", &content)]);
+                    }
+                    AgentEvent::ToolRequest(call) => {
+                        let args_str = call.arguments.to_string();
+                        print_json_event("tool_request", &[
+                            ("name", &call.name),
+                            ("arguments", &args_str),
+                        ]);
+                    }
+                    AgentEvent::ToolResult(result) => {
+                        let output_str = result.output.to_string();
+                        print_json_event("tool_result", &[
+                            ("name", &result.name),
+                            ("output", &output_str),
+                            ("is_error", &result.is_error.to_string()),
+                        ]);
+                    }
+                    AgentEvent::Done => {}
+                }
+            }
+            print_json_event("done", &[("result", "completed")]);
+        }
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+    }
+
+    Ok(())
+}
+
+fn parse_args() -> Option<(String, String, Option<PathBuf>)> {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        return None;
+    }
+
+    if args[1] == "run" {
+        let mut prompt = None;
+        let mut mode = "fs-agent".to_string();
+        let mut cwd = None;
+
+        let mut i = 2;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--jsonl" => {}
+                "--mode" if i + 1 < args.len() => {
+                    mode = args[i + 1].clone();
+                    i += 1;
+                }
+                "--prompt" if i + 1 < args.len() => {
+                    prompt = Some(args[i + 1].clone());
+                    i += 1;
+                }
+                "--cwd" if i + 1 < args.len() => {
+                    let p = PathBuf::from(&args[i + 1]);
+                    if p.is_dir() {
+                        cwd = Some(p);
+                    }
+                    i += 1;
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+
+        if let Some(p) = prompt {
+            return Some((p, mode, cwd));
+        }
+    }
+
+    None
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    if let Some((prompt, mode, cwd)) = parse_args() {
+        if let Some(ref dir) = cwd {
+            std::env::set_current_dir(dir)?;
+        }
+        return run_json_mode(&prompt, &mode, cwd).await;
+    }
+
     tracing_subscriber::fmt()
         .with_env_filter("info")
         .init();

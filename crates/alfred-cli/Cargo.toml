@@ -10,6 +10,7 @@ crossterm.workspace = true
 ratatui.workspace = true
 ratatui-core = "0.1"
 serde.workspace = true
+serde_json.workspace = true
 serde_yaml.workspace = true
 tokio.workspace = true
 tracing.workspace = true
